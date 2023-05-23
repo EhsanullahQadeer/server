@@ -2,6 +2,7 @@ import WritterModel from "../models/Writter.js";
 import { StatusCodes } from "http-status-codes";
 import { BadRequestError } from "../errors/index.js";
 import User from "../models/User.js";
+import { removeImage } from "../middleware/coludinaryImage.js";
 import mongoose from "mongoose";
 // English.
 export const createWritter = async (req, res) => {
@@ -53,6 +54,49 @@ const data={
     msg: "Your request to become writter is submited successfully",
   });
 };
+//Upload writer profile picture
+export const uploadWriterProfileImage = async (req, res) => {
+  try {
+  const {imgUrl}=req.body;
+  const {writerId}=req.params;
+  const result =await WritterModel.findOne({_id:writerId})
+  //This is to remove if already uploaded image to cloudinary
+  if(result.photo){
+    console.log(result.photo)
+    removeImage({imgUrl:result.photo})
+  }
+
+  if(result){
+    result.photo=imgUrl;
+    result.save();
+    res.status(StatusCodes.OK).json({imgUrl:imgUrl})
+  }else{
+    res.status(StatusCodes.NOT_FOUND).json({msg:"Writter Not Found !"})
+  }
+    
+  } catch (error) {
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({msg:"Something Went Wrong !"})
+  }
+};
+// remove writter image
+export const removeWriterProfileImage = async (req, res) => {
+  try {
+  const {writerId}=req.params;
+  const result =await WritterModel.findOne({_id:writerId})
+  if(result){
+    result.photo="";
+    result.save();
+    res.status(StatusCodes.OK).json({msg:"Image Removed Sucessfully !"})
+  }else{
+    res.status(StatusCodes.NOT_FOUND).json({msg:"Writter Image Not Found !"})
+  }
+    
+  } catch (error) {
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({msg:"Something Went Wrong !"})
+  }
+};
+
+
 
 
 

@@ -20,6 +20,7 @@ import contactRouter from "./routes/contactRoutes.js";
 import writerRouter from "./routes/writterRoutes.js";
 import commentRouter from "./routes/commentRoutes.js";
 import googleLogin from "./routes/GoogleRoute.js";
+// import imageRouter from "./routes/uploadImageRoute.js"
 
 // middleware
 import notFoundMiddleware from "./middleware/not-found.js";
@@ -32,16 +33,16 @@ if (process.env.NODE_ENV !== "production") {
 import cloudinary from "cloudinary";
 
 cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.CLOUD_API_KEY,
-  api_secret: process.env.CLOUD_API_SECRET,
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
 app.use(express.json());
 app.use(helmet());
 app.use(xss());
 app.use(mongoSanitize());
-app.use(fileUpload({ useTempFiles: true }));
+
 
 // "http://127.0.0.1:5173"  is the localhost of React+Vite App we are allowing this by now to use our APIS
 app.use(
@@ -65,6 +66,8 @@ app.use("/api/v1/blog", blogRouter);
 app.use("/api/v1/writer", writerRouter);
 app.use("/api/v1/contact", contactRouter);
 app.use("/api/v1/comment", commentRouter);
+// app.use("/api/v1/image",imageRouter );
+
 
 app.use(notFoundMiddleware);
 app.use(errorHandlerMiddleware);

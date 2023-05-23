@@ -13,8 +13,12 @@ import {
   updateWriter,
   DisapproveWritter,
   getAllDisapprovedWritters,
-  getAllRejectedRequests
+  getAllRejectedRequests,
+  uploadWriterProfileImage,
+  removeWriterProfileImage
 } from "../controllers/writterController.js";
+import { uploadImage,removeImage } from "../middleware/coludinaryImage.js";
+import singleUpload from "../middleware/multer.js";
 
 import { authorizePermissions } from "../middleware/auth.js";
 import auth from "../middleware/auth.js";
@@ -25,6 +29,11 @@ router.route("/currentWritter").get(auth, getCurrentWritter);
 
 router.route("/updateWriter/:writerId").post(auth, updateWriter);
 // router.route("/:writerId").get(getSingleWritter);
+
+// writer image
+router.route("/uploadWritterProfileImage/:writerId").post(auth,singleUpload,uploadImage,uploadWriterProfileImage);
+router.route("/removeWritterProfileImage/:writerId").post(auth,removeImage,removeWriterProfileImage);
+
 
 
 // Below we need to add the middelware for the admins
@@ -39,6 +48,7 @@ router.route("/rejectedRequests").get(auth,authorizePermissions("admin"),getAllR
 router.route("/approveWriter/:writerId").post(auth,authorizePermissions("admin"),ApproveWritter);
 router.route("/disapproveWriter/:writerId").post(auth,authorizePermissions("admin"),DisapproveWritter);
 router.route("/rejectRequests/:writerId").post(auth,authorizePermissions("admin"),rejectRequests);
+
 
 
 
