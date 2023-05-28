@@ -1,6 +1,7 @@
 import { StatusCodes } from "http-status-codes";
 import { BadRequestError, UnAuthenticatedError } from "../errors/index.js";
 import User from "../models/User.js";
+import Writter from "../models/Writter.js";
 import AdminModel from "../models/Admin.js";
 import sendResetPassswordEmail from "../utils/sendResetPasswordEmail.js";
 import createHash from "../utils/createHash.js";
@@ -17,13 +18,12 @@ export const checkRole=async (req,res)=>{
     if(!idValid){
       throw new BadRequestError("This is Invalid UserID !");
     }
-let currentUser = await User.findOne({ _id:userId });
-if(!currentUser){
+let currentWriter = await Writter.findOne({ userId:userId ,isApproved: true}).select("_id isApproved");
+if(!currentWriter){
   throw new BadRequestError("User Not Found !");
+}else{
+  res.status(StatusCodes.OK).json(currentWriter)
 }
-  const {role,writer} =currentUser
-res.status(StatusCodes.OK).json({role,writer})
-
 }
 
 const register = async (req, res) => {

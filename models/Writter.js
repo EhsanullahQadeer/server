@@ -106,7 +106,7 @@ contactPrivacy:{
   linkedinId: {
     type: String,
   },
-  pinterestId: {
+  twitterId: {
     type: String,
   },
   youtube: {

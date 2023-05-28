@@ -2,6 +2,7 @@ import WritterModel from "../models/Writter.js";
 import { StatusCodes } from "http-status-codes";
 import { BadRequestError } from "../errors/index.js";
 import User from "../models/User.js";
+import Blog from "../models/Blog.js";
 import { removeImage } from "../middleware/coludinaryImage.js";
 import mongoose from "mongoose";
 // English.
@@ -62,7 +63,6 @@ export const uploadWriterProfileImage = async (req, res) => {
   const result =await WritterModel.findOne({_id:writerId})
   //This is to remove if already uploaded image to cloudinary
   if(result.photo){
-    console.log(result.photo)
     removeImage({imgUrl:result.photo})
   }
 
@@ -95,9 +95,64 @@ export const removeWriterProfileImage = async (req, res) => {
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({msg:"Something Went Wrong !"})
   }
 };
+//Top Writters
+export const topWritters=async (req,res)=>{
+  try {
+    const page = req.query.pageIndex ? +req.query.pageIndex : 1;
+    const limit = req.query.pageSize ? +req.query.pageSize : 3;
+    const skip = (page - 1) * limit;
+    const result = await Blog.aggregate([
+      { $match: { status:"Active"} },
+      {
+        $lookup: {
+          from: "writters",
+          localField: "writer",
+          foreignField: "_id",
+          as: "writer",
+        },
+      },
+      {
+        $unwind: '$writer',
+      },
+      {
+        $group: {
+          _id: '$writer',
+          totalViews: { $sum: '$views' },
+        },
+      },
+      {
+        "$project": {
+          "_id._id":1,"_id.name": 1,"_id.designation":1,"_id.photo":1,"_id.shortBio":1,
+          "_id.facebookId":1,"_id.twitterId":1,"_id.instagramId":1
+        }
+      },
+      {
+        $sort: { totalViews: -1 },
+      },
+      {
+        $facet: {
+          totalRecords: [{ $count: "total" }],
+          topWriter: [{ $skip: skip }, { $limit: limit }],
+        },
+      },
+      {
+        $unwind: '$topWriter',
+      },
+    ])
+       res.status(StatusCodes.OK).json({topWritters:result})
+     
+  } catch (error) {
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({msg:"Something Went Wrong !"})
+  }
+
+    
 
 
+  
+}
 
+
+//**********************************Admin Dashobaord Handler Apis******************************************************* */
 
 
 // This is route must be accessed by the admins only Here Displays the all wriiters who requested to become the writter
@@ -192,16 +247,17 @@ export const rejectRequests=async(req,res)=>{
 
 
 
-
-
-
 export const getSingleWritter = async (req, res) => {
+  try {
   let { writerId } = req.params;
-  let Writter = await WritterModel.findOne({ _id: writerId });
-  if (!Writter) {
-    throw new BadRequestError("This is Invalid WritterID");
+  let writer = await WritterModel.findOne({ _id: writerId });
+  if (!writer) {
+    res.status(StatusCodes.NOT_FOUND).json({msg:"This is Invalid WritterID"})
   }
-  res.status(StatusCodes.OK).json({ Writter });
+  res.status(StatusCodes.OK).json({ writer });
+  } catch (error) {
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error)
+  }
 };
 
 
