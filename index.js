@@ -20,6 +20,8 @@ import contactRouter from "./routes/contactRoutes.js";
 import writerRouter from "./routes/writterRoutes.js";
 import commentRouter from "./routes/commentRoutes.js";
 import googleLogin from "./routes/GoogleRoute.js";
+import RecentActivities from "./routes/recentActivitiesRoutes.js";
+import Stories from "./routes/storiesRoutes.js"
 // import imageRouter from "./routes/uploadImageRoute.js"
 
 // middleware
@@ -66,6 +68,8 @@ app.use("/api/v1/blog", blogRouter);
 app.use("/api/v1/writer", writerRouter);
 app.use("/api/v1/contact", contactRouter);
 app.use("/api/v1/comment", commentRouter);
+app.use("/api/v1/recent",RecentActivities)
+app.use("/api/v1/stories",Stories)
 // app.use("/api/v1/image",imageRouter );
 
 

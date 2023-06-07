@@ -197,29 +197,52 @@ export const getTopStories=async (req,res)=>{
           },
           {
             $addFields: {
+              topStory:"$$ROOT" ,
+            }
+          },
+          {
+            $lookup: {
+              from: "writters",
+              localField: "writer",
+              foreignField: "_id",
+              as: "writter",
+            },
+          },
+          {
+            $addFields: {
               date: { $dateToString: { format: "%Y-%m-%d", date: "$updatedAt" } }
             }
           },
+        
           {
             $sort: {
               date: -1 ,views: -1 
             }
           },
           {
-            $facet: {
-              // totalRecords: [{ $count: "total" }],
-              data: [{ $skip: skip }, { $limit: limit }],
-            },
+            $unwind:'$writter'
+            
           },
           {
-            $unwind: '$data',
+            $project:{
+              "topStory":1,
+              "writter.photo":1,
+              "writter.name":1
+            }
           },
+          {
+            $facet: {
+              topStories: [{ $skip: skip }, { $limit: limit }],
+            },
+          },
+          
         ])
         //if their is not blogs posted on current date
         previousDate.setDate(previousDate.getDate() - 1);
       }
     res.status(StatusCodes.OK).json(topStories);
   } catch (error) {
+    console.log(error)
     res.status(500).json({ error: 'Internal server error' });
   }
 }
@@ -237,13 +260,13 @@ export const getSingleWritterBlogs = async (req, res) => {
     var WritterBlogs = await BlogModel.find({ writer: writerId}).limit(limit)
     .skip(skip).populate({
       path: "writer",
-      select: "name",
+      select: "name photo",
     });
   }else{
     var WritterBlogs = await BlogModel.find({ writer: writerId,status:articlesType}).limit(limit)
     .skip(skip).populate({
       path: "writer",
-      select: "name",
+      select: "name photo",
     });
   }
   

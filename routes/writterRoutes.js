@@ -18,9 +18,8 @@ import {
   removeWriterProfileImage,
   topWritters
 } from "../controllers/writterController.js";
-import { uploadImage,removeImage } from "../middleware/coludinaryImage.js";
+import { uploadFile,removeImage } from "../middleware/coludinaryImage.js";
 import singleUpload from "../middleware/multer.js";
-
 import { authorizePermissions } from "../middleware/auth.js";
 import auth from "../middleware/auth.js";
 
@@ -34,7 +33,7 @@ router.route("/:writerId").get(getSingleWritter);
 
 //
 // writer image
-router.route("/uploadWritterProfileImage/:writerId").post(auth,singleUpload,uploadImage,uploadWriterProfileImage);
+router.route("/uploadWritterProfileImage/:writerId").post(auth,singleUpload,uploadFile,uploadWriterProfileImage);
 router.route("/removeWritterProfileImage/:writerId").post(auth,removeImage,removeWriterProfileImage);
 
 
