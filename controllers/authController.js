@@ -7,23 +7,58 @@ import sendResetPassswordEmail from "../utils/sendResetPasswordEmail.js";
 import createHash from "../utils/createHash.js";
 import crypto from "crypto";
 import mongoose from "mongoose";
+import { checkWriter, checkUser } from "../middleware/Checking.js";
+import response from "../errors/response.js";
+import notFound from "../errors/handling-requests.js";
+import InternalServerError from "../errors/front/ServerError.js";
 
 const overallAuth=async (req,res)=>{
 res.status(StatusCodes.OK).json({msg: "You Are Authenticated",})
 }
-export const checkRole=async (req,res)=>{
- 
-    const {userId}=req.body;
-    let idValid= mongoose.isValidObjectId(userId);
-    if(!idValid){
-      throw new BadRequestError("This is Invalid UserID !");
+
+export const checkRole = async (req, res) => {
+  const { userId } = req.body;
+  let idValid = mongoose.isValidObjectId(userId);
+  if (!idValid) {
+    throw new BadRequestError("This is Invalid UserID !");
+  }
+  let currentWriter = await Writter.findOne({
+    userId: userId,
+    isApproved: true,
+  }).select("_id isApproved");
+  if (!currentWriter) {
+    throw new BadRequestError("User Not Found !");
+  } else {
+    res.status(StatusCodes.OK).json(currentWriter);
+  }
+};
+
+export async function checkActiveUser (req,res) {
+
+  try {
+    const { userId, writerId } = req.body;
+    console.log(writerId)
+    let user;
+    if (writerId) {
+      //true is used to return data
+      user =await checkWriter(writerId, true);
+    } else if (userId) {
+      //true is used to return data
+      user = await checkUser(userId, true);
     }
-let currentWriter = await Writter.findOne({ userId:userId ,isApproved: true}).select("_id isApproved");
-if(!currentWriter){
-  throw new BadRequestError("User Not Found !");
-}else{
-  res.status(StatusCodes.OK).json(currentWriter)
-}
+    if(!user){
+     return notFound(res,{msg:"User not found"})
+    }
+    if (user.writer){
+       user = await Writter.findOne({userId:userId, isApproved: true,}) ;
+    }
+   
+    response(res,user);
+  } catch (error) {
+    console.log(error)
+    InternalServerError(res)
+  }
+ 
 }
 
 const register = async (req, res) => {
@@ -95,7 +130,6 @@ const login = async (req, res) => {
       const userId = user._id;
       const role=user.role;
       const writer=user.writer;
-
       res.status(StatusCodes.OK).json({ token, userId,role,writer });
     }
   } catch (error) {
@@ -119,11 +153,10 @@ export const adminLogin = async (req, res) => {
   const isPasswordCorrect = await admin.comparePassword(password);
   if (!isPasswordCorrect) {
     throw new UnAuthenticatedError(" Invalid Credentials!");
-  } else 
-  {
-    const role =admin.role;
+  } else {
+    const role = admin.role;
     const token = admin.createJWT();
-    res.status(StatusCodes.OK).json({ token,role});
+    res.status(StatusCodes.OK).json({ token, role });
   }
 };
 
@@ -200,4 +233,11 @@ const resetPassword = async (req, res) => {
   res.status(StatusCodes.OK).json({ msg: "Password Reset Successfully!" });
 };
 
-export { register, login, getCurrentUser, forgotPassword, resetPassword,overallAuth };
+export {
+  register,
+  login,
+  getCurrentUser,
+  forgotPassword,
+  resetPassword,
+  overallAuth,
+};

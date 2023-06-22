@@ -41,10 +41,10 @@ cloudinary.config({
 });
 
 app.use(express.json());
-app.use(helmet());
+app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" }));
 app.use(xss());
 app.use(mongoSanitize());
-
+app.use(express.static('public'));
 
 // "http://127.0.0.1:5173"  is the localhost of React+Vite App we are allowing this by now to use our APIS
 app.use(
@@ -57,6 +57,7 @@ app.use(
       "http://localhost:3000",
       "https://res.cloudinary.com",
       "https://blog-app-front.vercel.app",
+      "http://localhost:3001"
     ],
   })
 );
@@ -68,8 +69,8 @@ app.use("/api/v1/blog", blogRouter);
 app.use("/api/v1/writer", writerRouter);
 app.use("/api/v1/contact", contactRouter);
 app.use("/api/v1/comment", commentRouter);
-app.use("/api/v1/recent",RecentActivities)
-app.use("/api/v1/stories",Stories)
+app.use("/api/v1/recent",RecentActivities);
+app.use("/api/v1/stories",Stories);
 // app.use("/api/v1/image",imageRouter );
 
 

@@ -1,13 +1,50 @@
 import express from "express";
 let router = express.Router();
-
+import auth from "../middleware/auth.js";
 import {
   createComment,
-  singleBlogComments,
-} from "../controllers/commentController.js";
-import auth from "../middleware/auth.js";
+  replyToComment,
+  createReplyToReply,
 
-router.route("/createComment/:blogId").post(auth, createComment);
-router.route("/:blogId").get(singleBlogComments);
+  getAllComments,
+  getCommentReplies,
+  getReplyToCommentReply,
+
+  updateComment,
+  updateCommentReply,
+  updateReplyToReply,
+
+  deleteComment,
+  deleteCommentReply,
+  deleteReplyToReply
+  ,
+} from "../controllers/commentController.js";
+//Create
+router.route("/createComment").post(auth,createComment);
+router.route("/replyToComment/:commentId").post(auth,replyToComment);
+router.route("/createReplyToReply/:replyId").post(auth,createReplyToReply);
+//get
+router.route("/getAllComments/:blogId").get(auth,getAllComments);
+router.route("/getCommentReplies/:commentId").get(auth,getCommentReplies);
+router.route("/getReplyToCommentReply/:commentReplyId").get(auth,getReplyToCommentReply);
+//update
+router.route("/updateComment/:commentId").post(auth,updateComment);
+router.route("/updateCommentReply/:replyId").post(auth,updateCommentReply);
+router.route("/updateReplyToReply/:replyToReplyId").post(auth,updateReplyToReply);
+//delete
+router.route("/deleteComment/:commentId").post(auth,deleteComment);
+router.route("/deleteCommentReply/:replyId").post(auth,deleteCommentReply);
+router.route("/deleteReplyToReply/:replyToReplyId").post(auth,deleteReplyToReply);
+
+
+
+
+
+
+
+
+
+
+
 
 export default router;

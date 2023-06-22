@@ -6,9 +6,9 @@ import { StatusCodes } from "http-status-codes";
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     if (file.fieldname === "storyVideo") {
-      cb(null, "uploads/stories/videos");
+      cb(null, "public/uploads/stories/videos");
     } else if (file.fieldname === "storyImage") {
-      cb(null, "uploads/stories/images");
+      cb(null, "public/uploads/stories/images");
     } else {
       cb(new Error("Invalid fieldname"));
     }
@@ -33,15 +33,17 @@ export const uploadFilesMiddleware = (req, res, next) => {
       // Process uploaded files
       const { storyImage, storyVideo } = req.files;
       if (storyImage) {
-        req.body.videoUrl = `/uploads/stories/images/${storyImage[0].filename}`;
+        req.body.imageUrl = storyImage[0].filename;
       }
 
       if (storyVideo) {
-        req.body.imageUrl = `/uploads/stories/videos/${storyVideo[0].filename}`;
+        req.body.videoUrl = storyVideo[0].filename;
       }
       next();
     });
   } catch (error) {
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({msg:"Something Went Wrong"})
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ msg: "Something Went Wrong" });
   }
 };

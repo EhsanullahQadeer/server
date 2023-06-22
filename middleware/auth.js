@@ -6,12 +6,14 @@ import { StatusCodes } from "http-status-codes";
 const auth = async (req, res, next) => {
  
   const authHeader = req.headers.authorization ||req.body.headers.authorization;
+  console.log(authHeader.startsWith("Bearer"))
 
   if (!authHeader || !authHeader.startsWith("Bearer")) {
     // if (!authHeader) {
     throw new UnAuthenticatedError("Authentication invalid");
   }
   const token = authHeader.split(" ")[1];
+  console.log(token)
   // const token = authHeader;
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);

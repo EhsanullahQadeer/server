@@ -12,12 +12,15 @@ import {
   forgotPassword,
   resetPassword,
   overallAuth,
-  checkRole
+  checkRole,
+  checkActiveUser
 } from "../controllers/authController.js";
 // this route is for overall authrntication
 router.route("/overallAuth").post(auth,authorizePermissions("admin"),overallAuth);
 //This route is for check role of user 
 router.route("/checkRole").post(checkRole);
+router.route("/checkActiveUser").post(checkActiveUser);
+
 
 router.route("/register").post(register);
 router.route("/login").post(login);

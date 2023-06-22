@@ -1,23 +1,45 @@
 import mongoose from "mongoose";
 
-let CommentSchema = new mongoose.Schema(
+const commentSchema = new mongoose.Schema(
   {
-    comment: {
+    blogId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "blogs",
+      required: true,
+    },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Users",
+      required: true,
+    },
+    text: {
       type: String,
-      required: [true, "Please Provide the comment"],
+      required: true,
     },
-    user: {
-      type: mongoose.Types.ObjectId,
-      ref: "BlogAppUsers",
-      required: [true, "Please Provide the user"],
+    likes: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Users",
+      },
+    ],
+    replies:{
+      type:Number,
     },
-    blog: {
-      type: mongoose.Types.ObjectId,
-      ref: "BlogAppBlog",
-      required: [true, "Please Provide the comment blog"],
-    },
+    reportedBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Users",
+      },
+    ],
+    deleted:{
+      type:Boolean,
+      default:false
+    }
   },
   { timestamps: true }
+   
 );
 
-export default mongoose.model("BlogAppComments", CommentSchema);
+// Create the Comment model
+export default mongoose.model("comments", commentSchema);
+

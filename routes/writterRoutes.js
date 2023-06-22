@@ -29,7 +29,7 @@ router.route("/currentWritter").get(auth, getCurrentWritter);
 
 router.route("/updateWriter/:writerId").post(auth, updateWriter);
 router.route("/topWritters").get(topWritters);
-router.route("/:writerId").get(getSingleWritter);
+// router.route("/:writerId").get(getSingleWritter);
 
 //
 // writer image
@@ -46,7 +46,7 @@ router.route("/disapprovedWritters").get(auth,authorizePermissions("admin"),getA
 router.route("/rejectedRequests").get(auth,authorizePermissions("admin"),getAllRejectedRequests);
 
               // Actions on Data
-// router.route("/approveWriter/:writerId").post(auth, authorizePermissions("user"), ApproveWritter);
+
 router.route("/approveWriter/:writerId").post(auth,authorizePermissions("admin"),ApproveWritter);
 router.route("/disapproveWriter/:writerId").post(auth,authorizePermissions("admin"),DisapproveWritter);
 router.route("/rejectRequests/:writerId").post(auth,authorizePermissions("admin"),rejectRequests);

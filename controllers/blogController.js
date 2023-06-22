@@ -2,10 +2,13 @@ import BlogModel from "../models/Blog.js";
 import { StatusCodes } from "http-status-codes";
 import { BadRequestError, NotFoundError } from "../errors/index.js";
 import WriterModel from "../models/Writter.js";
-import { response } from "express";
+import response from "../errors/response.js";
 import mongoose from "mongoose";
+import notFound from "../errors/handling-requests.js";
+import InternalServerError from "../errors/front/ServerError.js";
+import BlogLikes from "../models/BlogLikes.js";
 
-export const getSingleCategoryBlogs= async (req,res)=>{
+export const getSingleCategoryBlogs = async (req, res) => {
   try {
     let category = req.query.category;
     const page = req.query.pageIndex ? +req.query.pageIndex : 1;
@@ -13,8 +16,7 @@ export const getSingleCategoryBlogs= async (req,res)=>{
     const skip = (page - 1) * limit;
 
     const result = await BlogModel.aggregate([
-
-      { $match: { status:"Active", category:category } },
+      { $match: { status: "Active", category: category } },
       {
         $lookup: {
           from: "writters",
@@ -47,7 +49,7 @@ export const getSingleCategoryBlogs= async (req,res)=>{
           "writter.createdAt": 0,
           "writter.updatedAt": 0,
           "writter.qualifications": 0,
-        }
+        },
       },
 
       {
@@ -62,15 +64,12 @@ export const getSingleCategoryBlogs= async (req,res)=>{
         },
       },
     ]);
-  
 
     res.status(StatusCodes.OK).send(result);
   } catch (error) {
     console.log(error);
   }
-
-  
-}
+};
 // Getting all blogs
 
 export const getAllBlogs = async (req, res) => {
@@ -80,8 +79,7 @@ export const getAllBlogs = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const result = await BlogModel.aggregate([
-
-      { $match: {status:"Active"} },
+      { $match: { status: "Active" } },
       {
         $lookup: {
           from: "writters",
@@ -114,7 +112,7 @@ export const getAllBlogs = async (req, res) => {
           "writter.createdAt": 0,
           "writter.updatedAt": 0,
           "writter.qualifications": 0,
-        }
+        },
       },
 
       {
@@ -129,7 +127,6 @@ export const getAllBlogs = async (req, res) => {
         },
       },
     ]);
-  
 
     res.status(StatusCodes.OK).send(result);
   } catch (error) {
@@ -139,146 +136,197 @@ export const getAllBlogs = async (req, res) => {
 
 export const getSingleBlog = async (req, res) => {
   try {
-  let { blogId } = req.params;
-  let Blog = await BlogModel.findOne({ _id: blogId }).populate({
-    path: "writer",
-    select: "-email -city -contactNumber -age",
-  });
-  if (!Blog) {
-    res.status(StatusCodes.NOT_FOUND).json({msg:"The Blog Not Exists"})
-  }else{
-    Blog.views = Blog.views +1;
-    Blog.save();
-    res.status(StatusCodes.OK).json({ Blog });
-  }
+    let { blogId } = req.params;
+    let Blog = await BlogModel.findOne({ _id: blogId }).populate({
+      path: "writer",
+      select: "-email -city -contactNumber -age",
+    });
+    if (!Blog) {
+      res.status(StatusCodes.NOT_FOUND).json({ msg: "The Blog Not Exists" });
+    } else {
+      Blog.views = Blog.views + 1;
+      Blog.save();
+      res.status(StatusCodes.OK).json({ Blog });
+    }
   } catch (error) {
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({msg:"Something Went Wrong !"})
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ msg: "Something Went Wrong !" });
+  }
+};
+//togle blog Like
+export const LikeSingleBlog = async (req, res) => {
+  try {
+    let { blogId, userId } = req.params;
+    if (!blogId || !userId) {
+      return res.status(StatusCodes.BAD_REQUEST);
+    }
+
+    let blog = await BlogModel.findById(blogId);
+    if (!blog) {
+      return notFound(res, { msg: "The Blog Not Exists" });
+    }
+
+    let like = await BlogLikes.findOne({ blogId, userId });
+    if (like) {
+      // If like already exists, remove it
+      await BlogLikes.findByIdAndDelete(like._id);
+      await BlogModel.findByIdAndUpdate(blogId, { $inc: { likes: -1 } });
+      return response(res, { msg: "removed" });
+    } else {
+      // If like doesn't exist, add it
+      const newLike = new BlogLikes({
+        blogId: blogId,
+        userId: userId,
+      });
+      await newLike.save();
+      await BlogModel.findByIdAndUpdate(blogId, { $inc: { likes: 1 } });
+      return response(res, { msg: "liked" });
+    }
+  } catch (error) {
+    InternalServerError(res);
   }
 };
 //
-export const getTrendingBlogs=async (req,res)=>{
+export const getTrendingBlogs = async (req, res) => {
   try {
-    let  Blogs = await BlogModel.find().populate({
-      path: "writer",
-      select: "name",
-    }).sort({views: -1}).limit(6)
-    res.status(StatusCodes.OK).json(Blogs)
+    let Blogs = await BlogModel.find()
+      .populate({
+        path: "writer",
+        select: "name",
+      })
+      .sort({ views: -1 })
+      .limit(6);
+    res.status(StatusCodes.OK).json(Blogs);
   } catch (error) {
-     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({msg:"Something Went Wrong !"})
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ msg: "Something Went Wrong !" });
   }
-}
+};
 //getting top stories
-export const getTopStories=async (req,res)=>{
-
+export const getTopStories = async (req, res) => {
   const page = req.query.pageIndex ? +req.query.pageIndex : 1;
   const limit = req.query.pageSize ? +req.query.pageSize : 4;
   const skip = (page - 1) * limit;
 
-      const previousDate = new Date();
+  const previousDate = new Date();
   try {
-     //getting minimum date to use in loop logic
+    //getting minimum date to use in loop logic
     let getDate = await BlogModel.find({
-      status:"Active"
-    }).sort({ updatedAt: 1 }).limit(1);
-    const firstBlogApprovedDate=getDate[0].updatedAt;
+      status: "Active",
+    })
+      .sort({ updatedAt: 1 })
+      .limit(1);
+    const firstBlogApprovedDate = getDate[0].updatedAt;
 
-    let topStories=[];
-      while(topStories.length <=limit && firstBlogApprovedDate<=previousDate ){
-      const previousDateString = previousDate.toISOString().slice(0, 10); 
-      const prevDay=new Date(previousDateString)
-      
+    let topStories = [];
+    while (
+      topStories.length <= limit &&
+      firstBlogApprovedDate <= previousDate
+    ) {
+      const previousDateString = previousDate.toISOString().slice(0, 10);
+      const prevDay = new Date(previousDateString);
+
       topStories = await BlogModel.aggregate([
-          {
-            $match: {
-                updatedAt: {
-            $gte: prevDay
-          } ,status:"Active"
-            }
-          },
-          {
-            $addFields: {
-              topStory:"$$ROOT" ,
-            }
-          },
-          {
-            $lookup: {
-              from: "writters",
-              localField: "writer",
-              foreignField: "_id",
-              as: "writter",
+        {
+          $match: {
+            updatedAt: {
+              $gte: prevDay,
             },
+            status: "Active",
           },
-          {
-            $addFields: {
-              date: { $dateToString: { format: "%Y-%m-%d", date: "$updatedAt" } }
-            }
+        },
+        {
+          $addFields: {
+            topStory: "$$ROOT",
           },
-        
-          {
-            $sort: {
-              date: -1 ,views: -1 
-            }
+        },
+        {
+          $lookup: {
+            from: "writters",
+            localField: "writer",
+            foreignField: "_id",
+            as: "writter",
           },
-          {
-            $unwind:'$writter'
-            
+        },
+        {
+          $addFields: {
+            date: { $dateToString: { format: "%Y-%m-%d", date: "$updatedAt" } },
           },
-          {
-            $project:{
-              "topStory":1,
-              "writter.photo":1,
-              "writter.name":1
-            }
+        },
+
+        {
+          $sort: {
+            date: -1,
+            views: -1,
           },
-          {
-            $facet: {
-              topStories: [{ $skip: skip }, { $limit: limit }],
-            },
+        },
+        {
+          $unwind: "$writter",
+        },
+        {
+          $project: {
+            topStory: 1,
+            "writter.photo": 1,
+            "writter.name": 1,
           },
-          
-        ])
-        //if their is not blogs posted on current date
-        previousDate.setDate(previousDate.getDate() - 1);
-      }
+        },
+        {
+          $facet: {
+            topStories: [{ $skip: skip }, { $limit: limit }],
+          },
+        },
+      ]);
+      //if their is not blogs posted on current date
+      previousDate.setDate(previousDate.getDate() - 1);
+    }
     res.status(StatusCodes.OK).json(topStories);
   } catch (error) {
-    console.log(error)
-    res.status(500).json({ error: 'Internal server error' });
-  }
-}
-
-//getting all writters blogs
-export const getSingleWritterBlogs = async (req, res) => {
-
-  try {
-    let { writerId,articlesType} =req.query;
-    const page = req.query.pageIndex ? +req.query.pageIndex : 1;
-      const limit = req.query.pageSize ? +req.query.pageSize : 10;
-      const skip = (page - 1) * limit;
-     console.log(writerId)
-  if (articlesType=="all"){
-    var WritterBlogs = await BlogModel.find({ writer: writerId}).limit(limit)
-    .skip(skip).populate({
-      path: "writer",
-      select: "name photo",
-    });
-  }else{
-    var WritterBlogs = await BlogModel.find({ writer: writerId,status:articlesType}).limit(limit)
-    .skip(skip).populate({
-      path: "writer",
-      select: "name photo",
-    });
-  }
-  
-  if(!WritterBlogs){
-    res.status(StatusCodes.NOT_FOUND).json({msg:"Blogs Not Found !"});
-  }
-  res.status(StatusCodes.OK).json(WritterBlogs);
-  } catch (error) {
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({msg:"Something Went Wrong !"})
+    console.log(error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
+//getting all writters blogs
+export const getSingleWritterBlogs = async (req, res) => {
+  try {
+    let { writerId, articlesType } = req.query;
+    const page = req.query.pageIndex ? +req.query.pageIndex : 1;
+    const limit = req.query.pageSize ? +req.query.pageSize : 10;
+    const skip = (page - 1) * limit;
+    console.log(writerId);
+    if (articlesType == "all") {
+      var WritterBlogs = await BlogModel.find({ writer: writerId })
+        .limit(limit)
+        .skip(skip)
+        .populate({
+          path: "writer",
+          select: "name photo",
+        });
+    } else {
+      var WritterBlogs = await BlogModel.find({
+        writer: writerId,
+        status: articlesType,
+      })
+        .limit(limit)
+        .skip(skip)
+        .populate({
+          path: "writer",
+          select: "name photo",
+        });
+    }
+
+    if (!WritterBlogs) {
+      res.status(StatusCodes.NOT_FOUND).json({ msg: "Blogs Not Found !" });
+    }
+    res.status(StatusCodes.OK).json(WritterBlogs);
+  } catch (error) {
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ msg: "Something Went Wrong !" });
+  }
+};
 
 // Here we need to add some middleware for the writters only so that only the approved writter can write the blog
 export const createBlog = async (req, res) => {
@@ -295,25 +343,24 @@ export const createBlog = async (req, res) => {
 //Upload Blog images
 export const uploadBlogImgs = async (req, res) => {
   try {
-  const {imgUrl}=req.body;
-    res.status(StatusCodes.OK).json({imgUrl:imgUrl})
+    const { imgUrl } = req.body;
+    res.status(StatusCodes.OK).json({ imgUrl: imgUrl });
   } catch (error) {
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({msg:"Something Went Wrong !"})
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ msg: "Something Went Wrong !" });
   }
 };
 
-
-
-
 //Display All blogs to admin
-export const dispalyAllBlogs=async (req,res)=>{
+export const dispalyAllBlogs = async (req, res) => {
   try {
     const page = req.query.pageIndex ? +req.query.pageIndex : 1;
     const limit = req.query.pageSize ? +req.query.pageSize : 13;
     const skip = (page - 1) * limit;
 
     const result = await BlogModel.aggregate([
-      { $match: { status:"Pending" } },
+      { $match: { status: "Pending" } },
       {
         $lookup: {
           from: "writters",
@@ -346,7 +393,7 @@ export const dispalyAllBlogs=async (req,res)=>{
           "writter.createdAt": 0,
           "writter.updatedAt": 0,
           "writter.qualifications": 0,
-        }
+        },
       },
 
       {
@@ -361,26 +408,21 @@ export const dispalyAllBlogs=async (req,res)=>{
         },
       },
     ]);
-  
 
     res.status(StatusCodes.OK).send(result);
   } catch (error) {
     console.log(error);
-  
-}
-}
-
-
+  }
+};
 
 //Here the admin will approve or rejected the blogs
 export const updateBlogStatus = async (req, res) => {
   try {
-    let { blogId} = req.params;
-    let blog = await BlogModel.findOne({ _id: blogId ,status:"Pending"});
+    let { blogId } = req.params;
+    let blog = await BlogModel.findOne({ _id: blogId, status: "Pending" });
     if (!blog) {
       res.status(StatusCodes.NOT_FOUND).json({ msg: "Blog Not Found !" });
-    }
-     else {
+    } else {
       blog.status = "Active";
       await blog.save();
       res
@@ -396,12 +438,11 @@ export const updateBlogStatus = async (req, res) => {
 //Here the admin will reject the blogs
 export const RejectBlogStatus = async (req, res) => {
   try {
-    let { blogId} = req.params;
-    let blog = await BlogModel.findOne({ _id: blogId ,status:"Pending"});
+    let { blogId } = req.params;
+    let blog = await BlogModel.findOne({ _id: blogId, status: "Pending" });
     if (!blog) {
       res.status(StatusCodes.NOT_FOUND).json({ msg: "Blog Not Found !" });
-    }
-     else {
+    } else {
       blog.status = "Rejected";
       await blog.save();
       res

@@ -11,7 +11,8 @@ import {
   getSingleCategoryBlogs,
   getTrendingBlogs,
   uploadBlogImgs,
-  getTopStories
+  getTopStories,
+  LikeSingleBlog
 } from "../controllers/blogController.js";
 import { updateViewedBlog } from "../middleware/handleRecentAct.js";
 
@@ -24,6 +25,8 @@ import { uploadFile } from "../middleware/coludinaryImage.js";
 router.route("/").post(auth, isWriterApproved, createBlog).get(getAllBlogs);
 router.route("/getSingleCategoryBlogs").get(getSingleCategoryBlogs);
 router.route("/singleBlog/:blogId/:userId").get(updateViewedBlog,getSingleBlog);
+router.route("/LikeSingleBlog/:blogId?/:userId?").post(LikeSingleBlog);
+
 router.route("/singleWriterBlogs").get(getSingleWritterBlogs);
 router.route("/trendingBlogs").get(getTrendingBlogs);
 router.route("/topStories").get(getTopStories);
