@@ -51,6 +51,9 @@ app.use(
   cors({
     credentials: true,
     origin: [
+      "https://howsquare-sultan.netlify.app",
+      "https://howsquare.netlify.app",
+      "http://68.183.244.167:3000",
       "http://127.0.0.1:5173",
       "http://localhost:5174",
       "http://localhost:5173",
