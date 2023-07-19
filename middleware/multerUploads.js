@@ -9,7 +9,13 @@ const storage = multer.diskStorage({
       cb(null, "public/uploads/stories/videos");
     } else if (file.fieldname === "storyImage") {
       cb(null, "public/uploads/stories/images");
-    } else {
+    } 
+    else if(file.fieldname === "writerPhoto"){
+      cb(null, "public/uploads/writer/images");
+    }
+    else if(file.fieldname === "blogImage"){
+      cb(null, "public/uploads/blogs/images");
+    }else {
       cb(new Error("Invalid fieldname"));
     }
   },
@@ -25,15 +31,27 @@ export const uploadFilesMiddleware = (req, res, next) => {
     upload.fields([
       { name: "storyVideo", maxCount: 1 },
       { name: "storyImage", maxCount: 1 },
+      { name: "writerPhoto", maxCount: 1 },
+      { name: "blogImage", maxCount: 1 },
+      
     ])(req, res, (error) => {
       if (error) {
+        console.log(error)
         return res.status(500).send("Error uploading files");
       }
 
       // Process uploaded files
-      const { storyImage, storyVideo } = req.files;
+      const { storyImage, storyVideo ,writerPhoto,blogImage} = req.files;
       if (storyImage) {
         req.body.imageUrl = storyImage[0].filename;
+      }else if(writerPhoto){
+        req.body.imageUrl = writerPhoto[0].filename;
+      }
+      else if(blogImage){
+        const serverUrl = `${req.protocol}://${req.get('host')}`;
+        // Create the relative path for the uploaded image
+        const relativePath = blogImage[0].path.replace(/\\/g, '/').replace('public', '');
+        req.body.imageUrl =serverUrl + relativePath ;
       }
 
       if (storyVideo) {

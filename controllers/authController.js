@@ -12,9 +12,9 @@ import response from "../errors/response.js";
 import notFound from "../errors/handling-requests.js";
 import InternalServerError from "../errors/front/ServerError.js";
 
-const overallAuth=async (req,res)=>{
-res.status(StatusCodes.OK).json({msg: "You Are Authenticated",})
-}
+const overallAuth = async (req, res) => {
+  res.status(StatusCodes.OK).json({ msg: "You Are Authenticated" });
+};
 
 export const checkRole = async (req, res) => {
   const { userId } = req.body;
@@ -33,32 +33,30 @@ export const checkRole = async (req, res) => {
   }
 };
 
-export async function checkActiveUser (req,res) {
-
+export async function checkActiveUser(req, res) {
   try {
     const { userId, writerId } = req.body;
-    console.log(writerId)
+    console.log(writerId);
     let user;
     if (writerId) {
       //true is used to return data
-      user =await checkWriter(writerId, true);
+      user = await checkWriter(writerId, true);
     } else if (userId) {
       //true is used to return data
       user = await checkUser(userId, true);
     }
-    if(!user){
-     return notFound(res,{msg:"User not found"})
+    if (!user) {
+      return notFound(res, { msg: "User not found" });
     }
-    if (user.writer){
-       user = await Writter.findOne({userId:userId, isApproved: true,}) ;
+    if (user.writer) {
+      user = await Writter.findOne({ userId: userId, isApproved: true });
     }
-   
-    response(res,user);
+
+    response(res, user);
   } catch (error) {
-    console.log(error)
-    InternalServerError(res)
+    console.log(error);
+    InternalServerError(res);
   }
- 
 }
 
 const register = async (req, res) => {
@@ -78,33 +76,24 @@ const register = async (req, res) => {
         msg: "please provide all values",
       });
     } else if (userAlreadyExists) {
-      res.status(StatusCodes.BAD_REQUEST).json({
+      return res.status(StatusCodes.BAD_REQUEST).json({
         msg: "Email already in use",
       });
     } else {
-      const user = User.create(
-        {
-          firstName,
-          email,
-          password,
-          lastName,
-          categories,
-          phoneNo,
-        },
-        function (err) {
-          if (err) {
-            res.status(StatusCodes.BAD_REQUEST).json({});
-          } else {
-            //  const token = User.createJWT();
-            res.status(StatusCodes.OK).json({
-              // user: User,
-              message: "Registration Successful",
-              // token: token,
-            });
-          }
-        }
-      );
+      var user = await User.create({
+        firstName,
+        email,
+        password,
+        lastName,
+        categories,
+        phoneNo,
+      });
     }
+    const token = user.createJWT();
+    const userId = user._id;
+    const role = user.role;
+    const writer = user.writer;
+    res.status(StatusCodes.OK).json({ token, userId, role, writer });
   } catch (error) {
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       message: error.toString(),
@@ -128,9 +117,9 @@ const login = async (req, res) => {
     } else {
       const token = user.createJWT();
       const userId = user._id;
-      const role=user.role;
-      const writer=user.writer;
-      res.status(StatusCodes.OK).json({ token, userId,role,writer });
+      const role = user.role;
+      const writer = user.writer;
+      res.status(StatusCodes.OK).json({ token, userId, role, writer });
     }
   } catch (error) {
     throw new BadRequestError("Invalid Credentials");
@@ -143,8 +132,8 @@ export const adminLogin = async (req, res) => {
     throw new BadRequestError("Please Provide all the fields");
   }
   // AdminModel.create({
-  //   email,
-  //   password,
+  //   email:"admin@gmail.com",
+  //   password:"123456",
   // });
   var admin = await AdminModel.findOne({ email }).select("+password");
   if (!admin) {

@@ -24,9 +24,9 @@ router.route("/createComment").post(auth,createComment);
 router.route("/replyToComment/:commentId").post(auth,replyToComment);
 router.route("/createReplyToReply/:replyId").post(auth,createReplyToReply);
 //get
-router.route("/getAllComments/:blogId").get(auth,getAllComments);
-router.route("/getCommentReplies/:commentId").get(auth,getCommentReplies);
-router.route("/getReplyToCommentReply/:commentReplyId").get(auth,getReplyToCommentReply);
+router.route("/getAllComments/:blogId").get(getAllComments);
+router.route("/getCommentReplies/:commentId").get(getCommentReplies);
+router.route("/getReplyToCommentReply/:commentReplyId").get(getReplyToCommentReply);
 //update
 router.route("/updateComment/:commentId").post(auth,updateComment);
 router.route("/updateCommentReply/:replyId").post(auth,updateCommentReply);

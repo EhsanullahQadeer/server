@@ -2,9 +2,8 @@ import User from "../models/User.js";
 import RecentActivities from "../models/RecentActivities.js";
 
 export const updateViewedBlog = async (req, res, next) => {
-    // console.log(req.params)
     const { userId, blogId } = req.params;
-  if(userId!=404){
+  if(userId!="undefined"){
     try {
         const user = await User.findById(userId);
         if (user) {

@@ -51,6 +51,9 @@ const UserSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  photo:{
+   type:String
+  },
   // For the reset password
   passwordToken: {
     type: String,

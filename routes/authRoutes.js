@@ -19,7 +19,7 @@ import {
 router.route("/overallAuth").post(auth,authorizePermissions("admin"),overallAuth);
 //This route is for check role of user 
 router.route("/checkRole").post(checkRole);
-router.route("/checkActiveUser").post(checkActiveUser);
+router.route("/checkActiveUser").post(auth,checkActiveUser);
 
 
 router.route("/register").post(register);

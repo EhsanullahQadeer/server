@@ -45,18 +45,19 @@ export const createWritter = async (req, res) => {
 //Upload writer profile picture
 export const uploadWriterProfileImage = async (req, res) => {
   try {
-    const { imgUrl } = req.body;
+    const { imageUrl } = req.body;
     const { writerId } = req.params;
     const result = await WritterModel.findOne({ _id: writerId });
     //This is to remove if already uploaded image to cloudinary
-    if (result.photo) {
-      removeImage({ imgUrl: result.photo });
-    }
+    // if (result.photo) {
+    //   removeImage({ imgUrl: result.photo });
+    // }
 
     if (result) {
-      result.photo = imgUrl;
+      result.photo = imageUrl;
       result.save();
-      res.status(StatusCodes.OK).json({ imgUrl: imgUrl });
+    await  User.findByIdAndUpdate(result.userId,{photo:imageUrl})
+      res.status(StatusCodes.OK).json({ imgUrl: imageUrl });
     } else {
       res.status(StatusCodes.NOT_FOUND).json({ msg: "Writter Not Found !" });
     }
@@ -74,6 +75,7 @@ export const removeWriterProfileImage = async (req, res) => {
     if (result) {
       result.photo = "";
       result.save();
+      await  User.findByIdAndUpdate(result.userId,{photo:""})
       res.status(StatusCodes.OK).json({ msg: "Image Removed Sucessfully !" });
     } else {
       res
@@ -320,7 +322,7 @@ export const updateWriter = async (req, res) => {
       throw new BadRequestError("The Writer Not Exists");
     }
 
-    await WritterModel.findByIdAndUpdate(
+   let writerData= await WritterModel.findByIdAndUpdate(
       writer._id,
       {
         $set: req.body,
@@ -330,7 +332,7 @@ export const updateWriter = async (req, res) => {
 
     res
       .status(StatusCodes.OK)
-      .json({ msg: "Thw Writer is updated successfully" });
+      .json(writerData);
   } catch (error) {
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error);
   }

@@ -6,7 +6,7 @@ import { StatusCodes } from "http-status-codes";
 const auth = async (req, res, next) => {
  
   const authHeader = req.headers.authorization ||req.body.headers.authorization;
-  console.log(authHeader.startsWith("Bearer"))
+  // console.log(authHeader.startsWith("Bearer"))
 
   if (!authHeader || !authHeader.startsWith("Bearer")) {
     // if (!authHeader) {

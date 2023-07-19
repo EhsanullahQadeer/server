@@ -32,7 +32,7 @@ export async function createComment(req, res) {
 
     if (comment) {
       await Comment.populate(comment, [
-        { path: "userId", select: "firstName lastName" },
+        { path: "userId", select: "firstName lastName photo" },
         // { path: "replies.userId", select: "firstName lastName" },
       ]);
     }
@@ -58,7 +58,7 @@ export async function getAllComments(req, res) {
       return notFound(res, { msg: "Blog not Found" });
     }
     const comments = await Comment.find({ blogId, deleted: false })
-      .populate("userId", "firstName lastName")
+      .populate("userId", "firstName lastName photo")
       // .populate("replies.userId", "firstName lastName")
       .sort({ createdAt: -1, likes: -1 })
       .skip(skip)
@@ -85,7 +85,7 @@ export async function updateComment(req, res) {
       _id: commentId,
       userId: userId,
       deleted: false,
-    }).populate("userId", "firstName lastName");
+    }).populate("userId", "firstName lastName photo");
     // .populate("replies.userId", "firstName lastName");
     if (!comment) {
       return notFound(res, { error: "Comment not found" });

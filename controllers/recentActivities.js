@@ -34,7 +34,8 @@ export const getRecentlyViewedBlogs = async (req, res) => {
 //add bookmarks
 export const addBookmark = async (req, res) => {
   try {
-    const { userId, blogId } = req.params;
+    const {blogId } = req.params;
+    const {userId}=req.body;
 
     if (userId == 404) {
       return res
@@ -71,7 +72,8 @@ export const addBookmark = async (req, res) => {
 //remove bookmark
 export const removeBookmark = async (req, res) => {
   try {
-    const { userId, blogId } = req.params;
+    const {blogId } = req.params;
+    const {userId}=req.body;
     await RecentActivities.deleteMany({
       "bookmarks.blogId": blogId,
       "bookmarks.userId": userId,
@@ -112,24 +114,4 @@ export const getBookmark = async (req, res) => {
       .json({ msg: "Something Went Wrong !" });
   }
 };
-//single Bookmark Status
-export const singleBookmarkStatus = async (req, res) => {
-  try {
-    const { blogId } = req.params;
-    const isBookmarked = await RecentActivities.find({
-      "bookmarks.blogId": blogId,
-    });
-    console.log(isBookmarked.length);
-    let bookmarked;
-    if (isBookmarked.length != 0) {
-      bookmarked = true;
-    } else {
-      bookmarked = false;
-    }
-    res.status(StatusCodes.OK).json({ isBookmarked: bookmarked });
-  } catch (error) {
-    res
-      .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({ msg: "Something Went Wrong !" });
-  }
-};
+

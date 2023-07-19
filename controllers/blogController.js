@@ -3,10 +3,10 @@ import { StatusCodes } from "http-status-codes";
 import { BadRequestError, NotFoundError } from "../errors/index.js";
 import WriterModel from "../models/Writter.js";
 import response from "../errors/response.js";
-import mongoose from "mongoose";
 import notFound from "../errors/handling-requests.js";
 import InternalServerError from "../errors/front/ServerError.js";
 import BlogLikes from "../models/BlogLikes.js";
+import RecentActivities from "../models/RecentActivities.js";
 
 export const getSingleCategoryBlogs = async (req, res) => {
   try {
@@ -136,19 +136,40 @@ export const getAllBlogs = async (req, res) => {
 
 export const getSingleBlog = async (req, res) => {
   try {
-    let { blogId } = req.params;
-    let Blog = await BlogModel.findOne({ _id: blogId }).populate({
-      path: "writer",
-      select: "-email -city -contactNumber -age",
-    });
+    let { blogId, userId } = req.params;
+    let Blog = await BlogModel.findOneAndUpdate(
+      { _id: blogId },
+      { $inc: { views: 2 } }
+    )
+      .populate({
+        path: "writer",
+        select: "-email -city -contactNumber -age",
+      })
+      .lean();
     if (!Blog) {
-      res.status(StatusCodes.NOT_FOUND).json({ msg: "The Blog Not Exists" });
-    } else {
-      Blog.views = Blog.views + 1;
-      Blog.save();
-      res.status(StatusCodes.OK).json({ Blog });
+      return res
+        .status(StatusCodes.NOT_FOUND)
+        .json({ msg: "The Blog Not Exists" });
     }
+
+    if (userId != "undefined") {
+      //This for checking like status of current user
+      let like = await BlogLikes.findOne({ blogId, userId });
+      if (like) {
+        Blog.liked = true;
+      }
+      //
+      const isBookmarked = await RecentActivities.findOne({
+        "bookmarks.blogId": blogId,
+        "bookmarks.userId": userId,
+      });
+      if (isBookmarked) {
+        Blog.bookmarked = true;
+      }
+    }
+    res.status(StatusCodes.OK).json({ Blog });
   } catch (error) {
+    console.log(error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ msg: "Something Went Wrong !" });
@@ -157,7 +178,8 @@ export const getSingleBlog = async (req, res) => {
 //togle blog Like
 export const LikeSingleBlog = async (req, res) => {
   try {
-    let { blogId, userId } = req.params;
+    let { blogId } = req.params;
+    let { userId } = req.body;
     if (!blogId || !userId) {
       return res.status(StatusCodes.BAD_REQUEST);
     }
@@ -190,10 +212,10 @@ export const LikeSingleBlog = async (req, res) => {
 //
 export const getTrendingBlogs = async (req, res) => {
   try {
-    let Blogs = await BlogModel.find()
+    let Blogs = await BlogModel.find({ status: "Active"})
       .populate({
         path: "writer",
-        select: "name",
+        select: "name photo",
       })
       .sort({ views: -1 })
       .limit(6);
@@ -343,8 +365,8 @@ export const createBlog = async (req, res) => {
 //Upload Blog images
 export const uploadBlogImgs = async (req, res) => {
   try {
-    const { imgUrl } = req.body;
-    res.status(StatusCodes.OK).json({ imgUrl: imgUrl });
+    const { imageUrl } = req.body;
+    res.status(StatusCodes.OK).json({ imgUrl: imageUrl });
   } catch (error) {
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
