@@ -11,7 +11,6 @@ import {
   getSingleCategoryBlogs,
   getTrendingBlogs,
   uploadBlogImgs,
-  getTopStories,
   LikeSingleBlog
 } from "../controllers/blogController.js";
 import { updateViewedBlog } from "../middleware/handleRecentAct.js";
@@ -28,7 +27,6 @@ router.route("/LikeSingleBlog/:blogId").post(auth,LikeSingleBlog);
 
 router.route("/singleWriterBlogs").get(getSingleWritterBlogs);
 router.route("/trendingBlogs").get(getTrendingBlogs);
-router.route("/topStories").get(getTopStories);
 //Upload blog Images
 // router.route("/uploadBlogImgs").post(uploadBlogImgs);
 //auth,singleUpload,

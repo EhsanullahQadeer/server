@@ -4,7 +4,6 @@ import WriterModel from "../models/Writter.js";
 import { StatusCodes } from "http-status-codes";
 
 const auth = async (req, res, next) => {
- 
   const authHeader = req.headers.authorization ||req.body.headers.authorization;
   // console.log(authHeader.startsWith("Bearer"))
 

@@ -4,7 +4,7 @@ import StoriesViews from "../models/StoriesViews.js";
 import { StatusCodes } from "http-status-codes";
 import InternalServerError from "../errors/front/ServerError.js";
 import response from "../errors/response.js";
-import { checkUser} from "../middleware/Checking.js";
+import { checkUser } from "../middleware/Checking.js";
 
 // Create a new story
 export const createStory = async (req, res) => {
@@ -60,69 +60,97 @@ export const getStories = async (req, res) => {
   let currentDate = new Date();
 
   try {
-    const sponsoredStories = await Story.find({
+    let count;
+    let query = {
+      isHowSquareAdd: false,
       isSponsored: true,
       isDraft: false,
       expiryTime: { $gt: currentDate },
       $or: [{ scheduleTime: { $lte: currentDate } }, { scheduleTime: null }],
-    })
+    };
+  //sponsored stories
+    const sponsoredStories = await Story.find(query)
       .sort({ updatedAt: -1 })
       .skip(actionSkip)
       .limit(2)
+      .lean()
       .exec();
+      //counts
+      //we dont need to execute this query again and
+      if(page<=1){
+        count={};
+        count.sponsored = await Story.where(query).countDocuments();
+      }
 
-    //
-    const HowSquareAddStories = await Story.find({
-      isHowSquareAdd: true,
-      isDraft: false,
-      expiryTime: { $gt: currentDate },
-      $or: [{ scheduleTime: { $lte: currentDate } }, { scheduleTime: null }],
-    })
+    //How square Add
+    query.isHowSquareAdd = true;
+    query.isSponsored = false;
+    const HowSquareAddStories = await Story.find(query)
       .sort({ updatedAt: -1 })
       .skip(actionSkip)
       .limit(2)
+      .lean()
       .exec();
-
-    //
-    const simpleStories = await Story.find({
-      isSponsored: false,
-      isHowSquareAdd: false,
-      isDraft: false,
-      expiryTime: { $gt: currentDate },
-      $or: [{ scheduleTime: { $lte: currentDate } }, { scheduleTime: null }],
-    })
+      //counts
+      if(page<=1){
+      count.howSquareAdd = await Story.where(query).countDocuments();
+      }
+    //simple stories
+    query.isHowSquareAdd = false;
+    query.isSponsored = false;
+    const simpleStories = await Story.find(query)
       .sort({ updatedAt: -1 })
       .skip(skip)
       .limit(10)
+      .lean()
       .exec();
+      //counts
+      if(page<=1){
+      count.simpleStories = await Story.where(query).countDocuments();
+      }
 
     // Sort the viewed stories at end
+    let sortedStories = [
+      ...sponsoredStories,
+      ...HowSquareAddStories,
+      ...simpleStories,
+    ];
+    if (userId) {
+      const viewedStories = await StoriesViews.find({ user: userId })
+        .lean()
+        .exec();
 
-    // if (userId) {
-    //   const viewedStoryIds = await StoriesViews.find({ user: userId }).distinct(
-    //     "story"
-    //   );
+        //sorting logics
+      const viewedStoryIds = viewedStories.map((item) => item.story.toString());
 
-    //   const sortedStories = [
-    //     ...sponsoredStories,
-    //     ...HowSquareAddStories,
-    //     ...simpleStories,
-    //   ];
-    //   sortedStories.sort((a, b) => {
-    //     if (viewedStoryIds.includes(a._id) && !viewedStoryIds.includes(b._id)) {
-    //       return 1; // Place viewed story at the end
-    //     } else if (
-    //       !viewedStoryIds.includes(a._id) &&
-    //       viewedStoryIds.includes(b._id)
-    //     ) {
-    //       return -1; // Place unviewed story at the beginning
-    //     } else {
-    //       return 0; // Maintain the original order for other stories
-    //     }
-    //   });
-    // }
+      let notViewedSortedStories = sortedStories.filter(
+        (item) => !viewedStoryIds.includes(item._id.toString())
+      );
+      let viewdsortedStories = sortedStories.filter((item) =>
+        viewedStoryIds.includes(item._id.toString())
+      );
+      // Assuming `viewdsortedStories` is your array to be sorted
+      viewdsortedStories.sort((a, b) => {
+        const aViewedStory = viewedStories.find(
+          (item) => item.story.toString() === a._id.toString()
+        );
+        const bViewedStory = viewedStories.find(
+          (item) => item.story.toString() === b._id.toString()
+        );
+        if (aViewedStory && bViewedStory) {
+          return aViewedStory.updatedAt - bViewedStory.updatedAt; // Ascending order
+        } else if (aViewedStory) {
+          return 1; // b comes before a
+        } else if (bViewedStory) {
+          return -1; // a comes before b
+        } else {
+          return 0; // Neither has updatedAt, maintain order
+        }
+      });
 
-    response(res, { sponsoredStories, HowSquareAddStories, simpleStories });
+      sortedStories = [...notViewedSortedStories, ...viewdsortedStories];
+    }
+    response(res, {sortedStories,count});
   } catch (error) {
     console.log(error);
     InternalServerError(res);
@@ -133,14 +161,13 @@ export const viewStory = async (req, res) => {
   try {
     const { storyId, userId } = req.params;
     //checkUser
-    
+
     // Check if the story exists
     const story = await Story.findById(storyId);
     if (!story) {
       return res.status(404).json({ msg: "Story not found" });
     }
-    if(await checkUser(userId)){
-      
+    if (await checkUser(userId)) {
       const storyView = await StoriesViews.findOne({
         story: storyId,
         user: userId,
@@ -159,13 +186,12 @@ export const viewStory = async (req, res) => {
         const savedStoryView = await storyView.save();
       }
     }
-     // Increment the view count in the Stories collection
-     await Story.findByIdAndUpdate(storyId, { $inc: { views: 2 } });
-    
+    // Increment the view count in the Stories collection
+    await Story.findByIdAndUpdate(storyId, { $inc: { views: 2 } });
+
     return res.status(200).json({ msg: "Story viewed successfully" });
   } catch (error) {
     console.log("Error viewing story:", error);
-    console.log9;
     return res.status(500).json({ message: "Internal server error" });
   }
 };

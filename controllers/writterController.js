@@ -134,11 +134,8 @@ export const topWritters = async (req, res) => {
           topWriter: [{ $skip: skip }, { $limit: limit }],
         },
       },
-      {
-        $unwind: "$topWriter",
-      },
     ]);
-    res.status(StatusCodes.OK).json({ topWritters: result });
+    res.status(StatusCodes.OK).json(result);
   } catch (error) {
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)

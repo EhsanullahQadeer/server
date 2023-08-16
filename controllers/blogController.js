@@ -9,14 +9,34 @@ import BlogLikes from "../models/BlogLikes.js";
 import RecentActivities from "../models/RecentActivities.js";
 
 export const getSingleCategoryBlogs = async (req, res) => {
+
   try {
-    let category = req.query.category;
     const page = req.query.pageIndex ? +req.query.pageIndex : 1;
     const limit = req.query.pageSize ? +req.query.pageSize : 13;
     const skip = (page - 1) * limit;
+    let category = req.query.category;
+    const storyType = req.query.storyType;
 
+    let sort = { createdAt: -1 };
+    let match = {
+      status: "Active",
+      category: category,
+    };
+    //all top stories
+    if(category=='Top Stories'){
+    delete match.category;
+    }
+    if (storyType=='topStories' || category=='Top Stories') {
+      //get top stories for 10days
+      const tenDaysAgo = new Date();
+      tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
+      match.createdAt = { $gte: tenDaysAgo };
+      sort = { views: -1 };
+    }
     const result = await BlogModel.aggregate([
-      { $match: { status: "Active", category: category } },
+      {
+        $match: match,
+      },
       {
         $lookup: {
           from: "writters",
@@ -26,45 +46,16 @@ export const getSingleCategoryBlogs = async (req, res) => {
         },
       },
       {
-        $project: {
-          "writter.firstName": 0,
-          "writter.lastName": 0,
-          "writter.age": 0,
-          "writter.agePrivacy": 0,
-          "writter.cityPrivacy": 0,
-          "writter.emailPrivacy": 0,
-          "writter.contactPrivacy": 0,
-          "writter.city": 0,
-          "writter.province": 0,
-          "writter.country": 0,
-          "writter.qualification": 0,
-          "writter.email": 0,
-          "writter.phoneNo": 0,
-          "writter.purpose": 0,
-          "writter.userId": 0,
-          "writter.isApproved": 0,
-          "writter.isDisapproved": 0,
-          "writter.disapprovedComment": 0,
-          "writter.isRejected": 0,
-          "writter.createdAt": 0,
-          "writter.updatedAt": 0,
-          "writter.qualifications": 0,
-        },
+        $sort: sort,
       },
 
-      {
-        $sort: {
-          createdAt: -1,
-        },
-      },
       {
         $facet: {
           totalRecords: [{ $count: "total" }],
-          data: [{ $skip: skip }, { $limit: limit }],
+          blogs: [{ $skip: skip }, { $limit: limit }],
         },
       },
     ]);
-
     res.status(StatusCodes.OK).send(result);
   } catch (error) {
     console.log(error);
@@ -127,8 +118,7 @@ export const getAllBlogs = async (req, res) => {
         },
       },
     ]);
-
-    res.status(StatusCodes.OK).send(result);
+      res.status(StatusCodes.OK).send(result);
   } catch (error) {
     console.log(error);
   }
@@ -212,7 +202,7 @@ export const LikeSingleBlog = async (req, res) => {
 //
 export const getTrendingBlogs = async (req, res) => {
   try {
-    let Blogs = await BlogModel.find({ status: "Active"})
+    let Blogs = await BlogModel.find({ status: "Active" })
       .populate({
         path: "writer",
         select: "name photo",
@@ -224,89 +214,6 @@ export const getTrendingBlogs = async (req, res) => {
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ msg: "Something Went Wrong !" });
-  }
-};
-//getting top stories
-export const getTopStories = async (req, res) => {
-  const page = req.query.pageIndex ? +req.query.pageIndex : 1;
-  const limit = req.query.pageSize ? +req.query.pageSize : 4;
-  const skip = (page - 1) * limit;
-
-  const previousDate = new Date();
-  try {
-    //getting minimum date to use in loop logic
-    let getDate = await BlogModel.find({
-      status: "Active",
-    })
-      .sort({ updatedAt: 1 })
-      .limit(1);
-    const firstBlogApprovedDate = getDate[0].updatedAt;
-
-    let topStories = [];
-    while (
-      topStories.length <= limit &&
-      firstBlogApprovedDate <= previousDate
-    ) {
-      const previousDateString = previousDate.toISOString().slice(0, 10);
-      const prevDay = new Date(previousDateString);
-
-      topStories = await BlogModel.aggregate([
-        {
-          $match: {
-            updatedAt: {
-              $gte: prevDay,
-            },
-            status: "Active",
-          },
-        },
-        {
-          $addFields: {
-            topStory: "$$ROOT",
-          },
-        },
-        {
-          $lookup: {
-            from: "writters",
-            localField: "writer",
-            foreignField: "_id",
-            as: "writter",
-          },
-        },
-        {
-          $addFields: {
-            date: { $dateToString: { format: "%Y-%m-%d", date: "$updatedAt" } },
-          },
-        },
-
-        {
-          $sort: {
-            date: -1,
-            views: -1,
-          },
-        },
-        {
-          $unwind: "$writter",
-        },
-        {
-          $project: {
-            topStory: 1,
-            "writter.photo": 1,
-            "writter.name": 1,
-          },
-        },
-        {
-          $facet: {
-            topStories: [{ $skip: skip }, { $limit: limit }],
-          },
-        },
-      ]);
-      //if their is not blogs posted on current date
-      previousDate.setDate(previousDate.getDate() - 1);
-    }
-    res.status(StatusCodes.OK).json(topStories);
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ error: "Internal server error" });
   }
 };
 

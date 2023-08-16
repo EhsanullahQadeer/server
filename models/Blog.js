@@ -6,6 +6,10 @@ let BlogSchema = new mongoose.Schema(
       type: String,
       required: [true, "Please Provide the title"],
     },
+    titleLanguage:{
+      type:String,
+      default:"eng"
+    },
     subTitle: {
       type: String,
       required: [true, "Please Provide the subTitle"],
