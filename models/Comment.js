@@ -22,24 +22,24 @@ const commentSchema = new mongoose.Schema(
         ref: "Users",
       },
     ],
-    replies:{
-      type:Number,
-    },
+
+    // replies: {
+    //   type: mongoose.Schema.Types.ObjectId,
+    //   ref: "CommentsReply",
+    // },
     reportedBy: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Users",
       },
     ],
-    deleted:{
-      type:Boolean,
-      default:false
-    }
+    deleted: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
-   
 );
 
 // Create the Comment model
 export default mongoose.model("comments", commentSchema);
-

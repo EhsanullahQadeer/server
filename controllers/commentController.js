@@ -12,7 +12,7 @@ import InternalServerError from "../errors/front/ServerError.js";
 import notFound, { badRequest } from "../errors/handling-requests.js";
 import CommentReply from "../models/CommentReply.js";
 import replyToReply from "../models/blogComments/replyToReply.js";
-
+import mongoose from "mongoose";
 // Create a new comment
 export async function createComment(req, res) {
   try {
@@ -32,11 +32,10 @@ export async function createComment(req, res) {
 
     if (comment) {
       await Comment.populate(comment, [
-        { path: "userId", select: "firstName lastName photo" },
+        { path: "userId", select: "_id firstName lastName photo" },
         // { path: "replies.userId", select: "firstName lastName" },
       ]);
     }
-
     response(res, comment);
   } catch (error) {
     InternalServerError(res);
@@ -51,20 +50,55 @@ export async function getAllComments(req, res) {
     const limit = req.query.pageSize ? +req.query.pageSize : 10;
     const skip = (page - 1) * limit;
 
-    const totalCount = await Comment.countDocuments({ blogId: blogId });
-    const totalPages = Math.ceil(totalCount / limit);
+    const totalCount = await Comment.countDocuments({
+      blogId: blogId,
+      deleted: false,
+    });
 
     if (!(await checkBlog(blogId))) {
       return notFound(res, { msg: "Blog not Found" });
     }
-    const comments = await Comment.find({ blogId, deleted: false })
-      .populate("userId", "firstName lastName photo")
-      // .populate("replies.userId", "firstName lastName")
-      .sort({ createdAt: -1, likes: -1 })
-      .skip(skip)
-      .limit(limit);
-
-    response(res, { comments, totalPages, totalCount });
+    const comments = await Comment.aggregate([
+      { $match: { blogId: mongoose.Types.ObjectId(blogId), deleted: false } },
+      {
+        $lookup: {
+          from: "commentsreplies", // Name of the replies collection
+          localField: "_id",
+          foreignField: "commentId",
+          as: "replies",
+        },
+      },
+      {
+        $lookup: {
+          from: "users", // Name of the users collection
+          localField: "userId",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      {
+        $addFields: {
+          userId: { $arrayElemAt: ["$user", 0] }, // Extract user array
+          replyCount: { $size: "$replies" },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          text: 1,
+          likes: 1,
+          reportedBy: 1,
+          createdAt: 1,
+          userId: { _id: 1, firstName: 1, lastName: 1, photo: 1 }, // Include specific fields from user
+          replyCount: 1,
+        },
+      },
+      // , likes: -1
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+    ]);
+    response(res, { comments, totalCount });
   } catch (error) {
     console.log(error);
     InternalServerError(res);
@@ -96,9 +130,9 @@ export async function updateComment(req, res) {
 
     comment.text = text;
     await comment.save();
-
     response(res, comment);
   } catch (error) {
+    console.log(error);
     InternalServerError(res);
   }
 }
@@ -160,19 +194,19 @@ export async function replyToComment(req, res) {
     const { commentId } = req.params;
     const { userId, text } = req.body;
 
-    if(!text){
-      return badRequest(res,{msg:"Reply cannot be empty"})
+    if (!text) {
+      return badRequest(res, { msg: "Reply cannot be empty" });
     }
 
     // Find the comment based on the commentId
-    const comment = await Comment.findByIdAndUpdate(commentId,{ $inc: { replies: 1 } });
+    const comment = await Comment.findById(commentId);
     if (!comment) {
       return notFound(res, { msg: "Comment not found." });
     }
     // Create the reply object
     const reply = await CommentReply.create({ commentId, userId, text });
-    await reply.populate("userId","firstName lastName _id photo" );
-    response(res,reply)
+    await reply.populate("userId", "firstName lastName _id photo");
+    response(res, reply);
   } catch (error) {
     console.error(error);
     InternalServerError(res);
@@ -191,9 +225,57 @@ export async function getCommentReplies(req, res) {
     }
 
     // Find the replies of the comment
-    const replies = await CommentReply.find({ commentId: comment._id ,deleted:false}).
-    populate("userId" ,"firstName lastName photo")
-    response(res,replies);
+    // const replies = await CommentReply.find({
+    //   commentId: comment._id,
+    //   deleted: false,
+    // }).populate("userId", "firstName lastName photo");
+
+    const replies = await CommentReply.aggregate([
+      {
+        $match: {
+          commentId: mongoose.Types.ObjectId(commentId),
+          deleted: false,
+        },
+      },
+      {
+        $lookup: {
+          from: "users", // Name of the users collection
+          localField: "userId",
+          foreignField: "_id",
+          as: "userId",
+        },
+      },
+      {
+        $unwind: {
+          path: "$userId",
+        },
+      },
+      {
+        $lookup: {
+          from: "replytoreplies", // Name of the replies collection
+          localField: "_id",
+          foreignField: "replyId",
+          as: "replies",
+        },
+      },
+      {
+        $addFields: {
+          replyCount: { $size: "$replies" },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          text: 1,
+          replyCount: 1,
+          createdAt: 1,
+          userId: { _id: 1, firstName: 1, lastName: 1, photo: 1 },
+        },
+      },
+
+      { $sort: { createdAt: -1 } },
+    ]);
+    response(res, replies);
   } catch (error) {
     console.error(error);
     InternalServerError(res);
@@ -205,15 +287,18 @@ export async function getCommentReplies(req, res) {
 export async function updateCommentReply(req, res) {
   try {
     const { replyId } = req.params;
-    const { text,userId } = req.body;
+    const { text, userId } = req.body;
 
     // Find the reply based on the replyId
-    const reply = await CommentReply.findOneAndUpdate({_id:replyId,userId:userId,deleted:false},{text:text},{ new: true }).
-    populate("userId" ,"firstName lastName photo");
+    const reply = await CommentReply.findOneAndUpdate(
+      { _id: replyId, userId: userId, deleted: false },
+      { text: text },
+      { new: true }
+    ).populate("userId", "firstName lastName photo");
     if (!reply) {
       return notFound(res, { msg: "Reply not found." });
     }
-    response(res,reply)
+    response(res, reply);
   } catch (error) {
     console.error(error);
     InternalServerError(res);
@@ -223,19 +308,18 @@ export async function updateCommentReply(req, res) {
 export async function deleteCommentReply(req, res) {
   try {
     const { replyId } = req.params;
-    const {userId}=req.body;
+    const { userId } = req.body;
 
     // Find the reply based on the replyId
     const reply = await CommentReply.findOneAndUpdate(
-      {_id:replyId,userId:userId,deleted:false},
-      { deleted: true },
+      { _id: replyId, userId: userId, deleted: false },
+      { deleted: true }
     );
 
     if (!reply) {
       return notFound(res, { msg: "Reply not found." });
     }
-
-    response(res,{msg:"Reply deleted sucessfully."})
+    response(res, { msg: "Reply deleted sucessfully." });
   } catch (error) {
     console.error(error);
     InternalServerError(res);
@@ -249,15 +333,10 @@ export async function createReplyToReply(req, res) {
     const { replyId } = req.params;
     const { userId, text } = req.body;
 
-    const parentReply = await CommentReply.findById(replyId);
-    if (!parentReply) {
-      return notFound(res, { msg: "Parent reply not found." });
-    }
-
     // Create the reply object
-    const reply = await replyToReply.create({ replyId: replyId, userId, text});
+    const reply = await replyToReply.create({ replyId: replyId, userId, text });
     await reply.populate("userId", "firstName lastName _id photo");
-    
+
     response(res, reply);
   } catch (error) {
     InternalServerError(res);
@@ -268,16 +347,53 @@ export async function createReplyToReply(req, res) {
 export async function getReplyToCommentReply(req, res) {
   try {
     const { commentReplyId } = req.params;
-
-    // Find the comment based on the commentId
-    const commentReply = await CommentsReply.findById(commentReplyId);
-
-    if (!commentReply) {
-      return notFound(res, { msg: "Comment Reply not found." });
-    }
-
-    // Find the replies of the comment
-    const repliesToReply = await replyToReply.find({ replyId: commentReplyId, deleted: false });
+    const repliesToReply = await replyToReply.aggregate([
+      {
+        $match: {
+          replyId: mongoose.Types.ObjectId(commentReplyId),
+          deleted: false,
+        },
+      },
+      {
+        $graphLookup: {
+          from: "replytoreplies",
+          startWith: "$_id",
+          connectFromField: "_id",
+          connectToField: "replyId",
+          maxDepth: 1,
+          as: "allReplies",
+        },
+      },
+      {
+        $addFields: {
+          replyCount: { $size: "$allReplies" },
+        },
+      },
+      {
+        $lookup: {
+          from: "users", // Name of the users collection
+          localField: "userId",
+          foreignField: "_id",
+          as: "userId",
+        },
+      },
+      {
+        $unwind: {
+          path: "$userId",
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          text: 1,
+          replyId: 1,
+          replyCount: 1,
+          createdAt: 1,
+          userId: { _id: 1, firstName: 1, lastName: 1, photo: 1 },
+        },
+      },
+      { $sort: { createdAt: -1 } },
+    ]);
     response(res, repliesToReply);
   } catch (error) {
     InternalServerError(res);
@@ -291,13 +407,17 @@ export async function updateReplyToReply(req, res) {
     const { text, userId } = req.body;
 
     // Find the reply based on the replyId and userId
-    const updatedReplytoReply = await replyToReply.findOneAndUpdate({ _id: replyToReplyId, userId: userId, deleted: false }, { text: text }, { new: true });
+    const updatedReplytoReply = await replyToReply.findOneAndUpdate(
+      { _id: replyToReplyId, userId: userId, deleted: false },
+      { text: text },
+      { new: true }
+    );
     if (!updatedReplytoReply) {
       return notFound(res, { msg: "Reply not found." });
     }
     response(res, updatedReplytoReply);
   } catch (error) {
-    console.log(error)
+    console.log(error);
     InternalServerError(res);
   }
 }
@@ -309,12 +429,14 @@ export async function deleteReplyToReply(req, res) {
     const { userId } = req.body;
 
     // Find the reply based on the replyId and userId
-    const reply = await replyToReply.findOneAndUpdate({ _id: replyToReplyId, userId: userId, deleted: false }, { deleted: true });
+    const reply = await replyToReply.findOneAndUpdate(
+      { _id: replyToReplyId, userId: userId, deleted: false },
+      { deleted: true }
+    );
 
     if (!reply) {
       return notFound(res, { msg: "Reply not found." });
     }
-
     response(res, { msg: "Reply deleted successfully." });
   } catch (error) {
     console.error(error);
