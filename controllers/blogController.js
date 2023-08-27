@@ -9,7 +9,6 @@ import BlogLikes from "../models/BlogLikes.js";
 import RecentActivities from "../models/RecentActivities.js";
 
 export const getSingleCategoryBlogs = async (req, res) => {
-
   try {
     const page = req.query.pageIndex ? +req.query.pageIndex : 1;
     const limit = req.query.pageSize ? +req.query.pageSize : 13;
@@ -23,10 +22,10 @@ export const getSingleCategoryBlogs = async (req, res) => {
       category: category,
     };
     //all top stories
-    if(category=='Top Stories'){
-    delete match.category;
+    if (category == "Top Stories") {
+      delete match.category;
     }
-    if (storyType=='topStories' || category=='Top Stories') {
+    if (storyType == "topStories" || category == "Top Stories") {
       //get top stories for 10days
       const tenDaysAgo = new Date();
       tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
@@ -118,7 +117,7 @@ export const getAllBlogs = async (req, res) => {
         },
       },
     ]);
-      res.status(StatusCodes.OK).send(result);
+    res.status(StatusCodes.OK).send(result);
   } catch (error) {
     console.log(error);
   }
@@ -165,6 +164,7 @@ export const getSingleBlog = async (req, res) => {
       .json({ msg: "Something Went Wrong !" });
   }
 };
+
 //togle blog Like
 export const LikeSingleBlog = async (req, res) => {
   try {
@@ -382,5 +382,31 @@ export const RejectBlogStatus = async (req, res) => {
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ msg: "Something Went Wrong !" });
+  }
+};
+
+export const editSingleBlog = async (req, res) => {
+  try {
+    let { blogId } = req.params;
+    let { blogData } = req.body;
+    console.log(blogData);
+
+    let Blog = await BlogModel.findOneAndUpdate({ _id: blogId }, blogData, {
+      new: true,
+    })
+      .populate({
+        path: "writer",
+        select: "photo name designation qualifications ",
+      })
+      .lean();
+    if (!Blog) {
+      return res
+        .status(StatusCodes.NOT_FOUND)
+        .json({ msg: "The Blog Not Exists" });
+    }
+    return response(res, Blog);
+  } catch (error) {
+    console.log(error);
+    return InternalServerError(res);
   }
 };

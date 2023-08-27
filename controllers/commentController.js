@@ -33,7 +33,6 @@ export async function createComment(req, res) {
     if (comment) {
       await Comment.populate(comment, [
         { path: "userId", select: "_id firstName lastName photo" },
-        // { path: "replies.userId", select: "firstName lastName" },
       ]);
     }
     response(res, comment);
@@ -120,7 +119,6 @@ export async function updateComment(req, res) {
       userId: userId,
       deleted: false,
     }).populate("userId", "firstName lastName photo");
-    // .populate("replies.userId", "firstName lastName");
     if (!comment) {
       return notFound(res, { error: "Comment not found" });
     }
@@ -223,12 +221,6 @@ export async function getCommentReplies(req, res) {
     if (!comment) {
       return notFound(res, { msg: "Comment not found." });
     }
-
-    // Find the replies of the comment
-    // const replies = await CommentReply.find({
-    //   commentId: comment._id,
-    //   deleted: false,
-    // }).populate("userId", "firstName lastName photo");
 
     const replies = await CommentReply.aggregate([
       {

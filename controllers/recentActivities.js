@@ -2,7 +2,7 @@ import RecentActivities from "../models/RecentActivities.js";
 import Blog from "../models/Blog.js";
 import { StatusCodes } from "http-status-codes";
 import User from "../models/User.js";
-
+import { googlAnalyticsReport } from "../middleware/googleAnalytics.js";
 export const getRecentlyViewedBlogs = async (req, res) => {
   const { userId } = req.params;
   const page = req.query.pageIndex ? +req.query.pageIndex : 1;
@@ -20,10 +20,12 @@ export const getRecentlyViewedBlogs = async (req, res) => {
     const recentViewedBlogs = await Blog.populate(data, {
       path: "viewedPosts.blogId.writer",
       select: "name photo",
-    })
-   
-    const recentViewedBlogsData = recentViewedBlogs.map(item =>item.viewedPosts);
-         
+    });
+
+    const recentViewedBlogsData = recentViewedBlogs.map(
+      (item) => item.viewedPosts
+    );
+
     res.status(StatusCodes.OK).json(recentViewedBlogsData);
   } catch (error) {
     res
@@ -34,8 +36,8 @@ export const getRecentlyViewedBlogs = async (req, res) => {
 //add bookmarks
 export const addBookmark = async (req, res) => {
   try {
-    const {blogId } = req.params;
-    const {userId}=req.body;
+    const { blogId } = req.params;
+    const { userId } = req.body;
 
     if (userId == 404) {
       return res
@@ -62,7 +64,7 @@ export const addBookmark = async (req, res) => {
         bookmarks: { blogId: blogId, userId: userId },
       });
     }
-    res.status(StatusCodes.OK).json({isBookmarked:true});
+    res.status(StatusCodes.OK).json({ isBookmarked: true });
   } catch (error) {
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
@@ -72,8 +74,8 @@ export const addBookmark = async (req, res) => {
 //remove bookmark
 export const removeBookmark = async (req, res) => {
   try {
-    const {blogId } = req.params;
-    const {userId}=req.body;
+    const { blogId } = req.params;
+    const { userId } = req.body;
     await RecentActivities.deleteMany({
       "bookmarks.blogId": blogId,
       "bookmarks.userId": userId,
@@ -104,9 +106,9 @@ export const getBookmark = async (req, res) => {
     const bookmarks = await Blog.populate(data, {
       path: "bookmarks.blogId.writer",
       select: "name photo",
-    })
-    
-    const bookmarksData = bookmarks.map(item => item.bookmarks);
+    });
+
+    const bookmarksData = bookmarks.map((item) => item.bookmarks);
     res.status(StatusCodes.OK).json(bookmarksData);
   } catch (error) {
     res
@@ -115,3 +117,30 @@ export const getBookmark = async (req, res) => {
   }
 };
 
+export const getQuickStats = async (req, res) => {
+  try {
+    const tenDaysAgo = new Date();
+    tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
+    const [{ totalVisitors }, newPosts, blogRead, newSubscribers] =
+      await Promise.all([
+        googlAnalyticsReport(),
+        Blog.countDocuments({
+          status: "Active",
+          createdAt: { $gte: tenDaysAgo },
+        }),
+        RecentActivities.countDocuments(),
+        User.countDocuments(),
+      ]);
+
+    const counts = {
+      newPosts,
+      totalVisitors,
+      newSubscribers,
+      blogRead,
+    };
+
+    res.json(counts);
+  } catch (error) {
+    res.status(500).json({ error: "An error occurred" });
+  }
+};

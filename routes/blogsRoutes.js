@@ -19,8 +19,10 @@ import { uploadFilesMiddleware } from "../middleware/multerUploads.js";
 import { isWriterApproved } from "../middleware/auth.js";
 import { authorizePermissions } from "../middleware/auth.js";
 import auth from "../middleware/auth.js";
-
-router.route("/").post(auth, isWriterApproved, createBlog).get(getAllBlogs);
+import { editSingleBlog } from "../controllers/blogController.js";
+router.route("/")
+.post(auth, isWriterApproved, createBlog)
+.get(getAllBlogs);
 router.route("/getSingleCategoryBlogs").get(getSingleCategoryBlogs);
 router.route("/singleBlog/:blogId/:userId?").get(updateViewedBlog,getSingleBlog);
 router.route("/LikeSingleBlog/:blogId").post(auth,LikeSingleBlog);
@@ -36,7 +38,8 @@ router.route("/uploadBlogImgs").post(auth,uploadFilesMiddleware,uploadBlogImgs);
 router.route("/adminBlogs").get(auth,authorizePermissions("admin"),dispalyAllBlogs);
 router.route("/adminBlogsStatus/:blogId").post(auth,authorizePermissions("admin"),updateBlogStatus);
 router.route("/RejectBlogsStatus/:blogId").post(auth,authorizePermissions("admin"),RejectBlogStatus);
-
+router.route("/editSingleBlog/:blogId").post(editSingleBlog);
+// auth,authorizePermissions("admin"),
 
 
 export default router;
