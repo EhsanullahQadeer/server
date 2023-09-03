@@ -78,29 +78,44 @@ app.use("/api/v1/stories", Stories);
 app.use(notFoundMiddleware);
 app.use(errorHandlerMiddleware);
 
-const httpServer = http.createServer((req, res) => {
-  res.writeHead(301, { Location: `https://${req.headers.host}${req.url}` });
-  res.end();
-});
-const httpsOptions = {
-  cert: fs.readFileSync("./security/prod/certificate.crt"),
-  key: fs.readFileSync("./security/prod/howsquare.key"),
-  ca: fs.readFileSync("./security/prod/ca_bundle.crt"),
-};
-const httpsServer = https.createServer(httpsOptions, app);
+const port = process.env.PORT || 5000;
 
 const start = async () => {
   try {
-    connectDB(process.env.MONGO_URL);
-    httpServer.listen(80, () => {
-      console.log("HTTP server listening on port 80");
-    });
-
-    httpsServer.listen(443, () => {
-      console.log("HTTPS server listening on port 443");
+     connectDB(process.env.MONGO_URL);
+    app.listen(port, () => {
+      console.log(`Server is listening on port ${port}...`);
     });
   } catch (error) {
     console.log(error);
   }
 };
+
 start();
+
+// const httpServer = http.createServer((req, res) => {
+//   res.writeHead(301, { Location: `https://${req.headers.host}${req.url}` });
+//   res.end();
+// });
+// const httpsOptions = {
+//   cert: fs.readFileSync("./security/prod/certificate.crt"),
+//   key: fs.readFileSync("./security/prod/howsquare.key"),
+//   ca: fs.readFileSync("./security/prod/ca_bundle.crt"),
+// };
+// const httpsServer = https.createServer(httpsOptions, app);
+
+// const start = async () => {
+//   try {
+//     connectDB(process.env.MONGO_URL);
+//     httpServer.listen(80, () => {
+//       console.log("HTTP server listening on port 80");
+//     });
+
+//     httpsServer.listen(443, () => {
+//       console.log("HTTPS server listening on port 443");
+//     });
+//   } catch (error) {
+//     console.log(error);
+//   }
+// };
+// start();
